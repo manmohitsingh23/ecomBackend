@@ -71,4 +71,37 @@ router.get("/:userId", async (req,res)=>{
   }catch(err){ console.log(err); res.status(500).json({msg:"server error"}); }
 });
 
+// GENERIC UPDATE item in cart
+router.patch("/update", async (req,res)=>{
+  try{
+    const { userId, itemId, updates } = req.body;
+    // updates = { qty: 4 }  or { color: "black" }  or { size: "XL" }
+
+    const cart = await getOrCreateCart(userId);
+
+    const index = cart.items.findIndex(i => String(i.itemId) === itemId);
+
+    if(index < 0){
+      return res.status(404).json({ msg:"item not in cart" });
+    }
+
+    // apply updates to that item
+    Object.keys(updates).forEach(key => {
+      cart.items[index][key] = updates[key];
+    });
+
+    // special rule: if qty <= 0 remove item
+    if(cart.items[index].qty !== undefined && cart.items[index].qty <= 0){
+      cart.items = cart.items.filter(i => String(i.itemId) !== itemId);
+    }
+
+    await cart.save();
+    res.json({ msg:"item updated", cart });
+
+  }catch(err){
+    console.log(err);
+    res.status(500).json({ msg:"server error" });
+  }
+});
+
 export default router;
