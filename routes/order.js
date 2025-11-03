@@ -5,32 +5,34 @@ import Item from "../models/Item.js";
 
 const router = express.Router();
 
-// CHECKOUT – convert cart → order
-router.post("/checkout", async (req,res)=>{
-  try{
+// CHECKOUT – cart → order
+router.post("/checkout", async (req, res) => {
+  try {
     const { userId, address } = req.body;
 
-    // 1) get cart
-    const cart = await Cart.findOne({ userId });
-    if(!cart || cart.items.length===0)
-      return res.status(400).json({ msg:"cart empty" });
+    if (!userId || !address)
+      return res.status(400).json({ msg: "userId + address required" });
 
-    // 2) calculate total from DB (priceCalc = 1)
+    // 1) cart
+    const cart = await Cart.findOne({ userId });
+    if (!cart || cart.items.length === 0)
+      return res.status(400).json({ msg: "cart empty" });
+
+    // 2) calc
     let total = 0;
     let orderItems = [];
 
-    for(const c of cart.items){
+    for (const c of cart.items) {
       const item = await Item.findById(c.itemId);
+      if (!item) continue;
 
-      if(!item) continue;
-
-      const priceAtTime = item.price * c.qty;
-      total += priceAtTime;
+      const line = item.price * c.qty;
+      total += line;
 
       orderItems.push({
         itemId: item._id,
         qty: c.qty,
-        price: item.price
+        priceAtTime: item.price   // NAME FIX ✅
       });
     }
 
@@ -38,27 +40,32 @@ router.post("/checkout", async (req,res)=>{
     const order = await Order.create({
       userId,
       items: orderItems,
-      price: total,
+      totalPrice: total,         // NAME FIX ✅
       address,
-      status: "pending"
+      status: "PENDING"          // ENUM FIX ✅
     });
 
     // 4) empty cart
     cart.items = [];
     await cart.save();
 
-    res.json({ msg:"order created", orderId: order._id, totalPrice: total });
+    res.json({
+      msg: "order created",
+      orderId: order._id,
+      totalPrice: total
+    });
 
-  }catch(err){
+  } catch (err) {
     console.log(err);
-    res.status(500).json({ msg:"server error" });
+    res.status(500).json({ msg: "server error" });
   }
 });
 
-// get order list of user
-router.get("/:userId", async (req,res)=>{
+
+// GET orders for user
+router.get("/:userId", async (req, res) => {
   const { userId } = req.params;
-  const orders = await Order.find({ userId }).sort({createdAt:-1});
+  const orders = await Order.find({ userId }).sort({ createdAt: -1 });
   res.json(orders);
 });
 
