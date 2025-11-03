@@ -75,4 +75,20 @@ router.post("/adminSignup", async (req,res) => {
   }
 });
 
+// 🆕 GET USER BY ID
+router.get("/user/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password"); // exclude password
+
+    if (!user) {
+      return res.status(404).json({ msg: "user not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ msg: "server error" });
+  }
+});
+
 export default router;
